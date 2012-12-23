@@ -16,7 +16,7 @@
 #include "startex.h" 
 
 #define DEFAULT_FIFO_SIZE	(256*1024)
-#define NUM_STARS			2
+#define NUM_STARS			1
 
 typedef struct tagtexdef
 {
@@ -48,6 +48,7 @@ static void *frameBuffer[2] = { NULL, NULL};
 
 int main(int argc,char **argv)
 {
+    bool zspin = true, rotate = true;
 	f32 yscale,spin = 0.0f;
 	u32 xfbHeight,i;
 	u32 fb = 0;
@@ -155,13 +156,18 @@ int main(int argc,char **argv)
 	GX_LoadProjectionMtx(perspective, GX_PERSPECTIVE);
 
 	srand(time(NULL));
-//	for(i=0;i<NUM_STARS;i++) {
+	for(i=0;i<NUM_STARS;i++) {
 //		stars[i].ang = 0.0f;
 //		stars[i].xdist = (f32)i/(f32)NUM_STARS;
 //		stars[i].r = rand()%256;			// Give star[loop] A Random Red Intensity
 //		stars[i].g = rand()%256;			// Give star[loop] A Random Green Intensity
 //		stars[i].b = rand()%256;			// Give star[loop] A Random Blue Intensity
-//	}
+        stars[i].xdist = 1;//rand()%10 - 10;
+        stars[i].ydist = 1;//rand()%10 - 10;
+        stars[i].r = 255;		// Give It A New Red Value
+        stars[i].g = 255;		// Give It A New Green Value
+        stars[i].b = 255;		// Give It A New Blue Value
+	}
 
 	guVector starAxis1 = {0,1,0};
 	guVector starAxis2 = {0,0,1};
@@ -169,16 +175,35 @@ int main(int argc,char **argv)
 	while(1) {
 
 		WPAD_ScanPads();
-		if(WPAD_ButtonsDown(0) & WPAD_BUTTON_A) exit(0);
+		if(WPAD_ButtonsDown(0) & WPAD_BUTTON_A) rotate=!rotate;
+            
+        if (WPAD_ButtonsDown(0) & WPAD_BUTTON_HOME) exit(0);
         
         if (WPAD_ButtonsDown(0) & WPAD_BUTTON_B)
         {
             for (i=0; i<NUM_STARS; i++)
             {
-                stars[i].xdist = rand()%10 - 10;
-                stars[i].ydist = rand()%10 - 10;
+//                stars[i].xdist = 1;//rand()%10 - 10;
+//                stars[i].ydist = 1;//rand()%10 - 10;
+//                stars[i].r = 255;		// Give It A New Red Value
+//				stars[i].g = 255;		// Give It A New Green Value
+//				stars[i].b = 255;		// Give It A New Blue Value
+                zspin = !zspin;
             }
         }
+        if (WPAD_ButtonsHeld(0) & WPAD_BUTTON_1)
+            stars[0].ang += 1;
+        
+        if (WPAD_ButtonsHeld(0) & WPAD_BUTTON_2)
+            stars[0].ang -= 1;
+        
+        if(WPAD_ButtonsHeld(0) & WPAD_BUTTON_PLUS) spin +=1;
+        
+        if(WPAD_ButtonsHeld(0) & WPAD_BUTTON_MINUS) spin -=1;
+
+
+
+        
 
 		GX_SetTevOp(GX_TEVSTAGE0,GX_MODULATE);
 		GX_SetTevOrder(GX_TEVSTAGE0, GX_TEXCOORD0, GX_TEXMAP0, GX_COLOR0A0);
@@ -189,13 +214,31 @@ int main(int argc,char **argv)
 			Mtx mry,mrz;
 
 			guMtxIdentity(model);
-			guMtxRotAxisDeg(mry, &starAxis1, 0);//stars[i].ang);
+			guMtxRotAxisDeg(mry, &starAxis1, stars[i].ang);
 			guMtxRotAxisDeg(mrz, &starAxis2, spin);
 			guMtxConcat(mry,mrz,model);
 			guMtxTransApply(model, model, stars[i].xdist, stars[i].ydist,zoom);
 			guMtxConcat(view,model,modelview);
 
 			GX_LoadPosMtxImm(modelview, GX_PNMTX0);
+            
+            if (WPAD_ButtonsHeld(0) & WPAD_BUTTON_UP)   // moving left
+            {
+                stars[0].xdist-=.5;
+            }
+            if (WPAD_ButtonsHeld(0) & WPAD_BUTTON_DOWN) // moving right
+            {
+                stars[0].xdist+=.5;
+            }
+            if (WPAD_ButtonsHeld(0) & WPAD_BUTTON_LEFT) // moving down
+            {
+                stars[0].ydist-=.5;
+            }
+            if (WPAD_ButtonsHeld(0) & WPAD_BUTTON_RIGHT) // moving up
+            {
+                stars[0].ydist+=.5;
+            }
+            
 
 			GX_Begin(GX_QUADS, GX_VTXFMT0, 4);					// Draw a quad
 				GX_Position3f32(-1.0f, -1.0f, 0.0f);			// Top Left of the quad (top)
@@ -212,17 +255,18 @@ int main(int argc,char **argv)
 				GX_TexCoord2f32(0.0f,1.0f);
 			GX_End();											// Done Drawing The Quad 
 
-			spin += 0.5f;
-			stars[i].ang += (f32)i/(f32)NUM_STARS;
+            if (zspin)
+                stars[i].ang += .5f;
+            
+            if (rotate)
+                spin += 0.5f;
+//			stars[i].ang += (f32)i/(f32)NUM_STARS;
 //			stars[i].xdist -= 0.01f;
 
-			if(stars[i].xdist<1.0f)			// Is The Star In The Middle Yet
-			{
-				stars[i].xdist += 5.0f;			// Move The Star 5 Units From The Center
-				stars[i].r = 255;		// Give It A New Red Value
-				stars[i].g = 255;		// Give It A New Green Value
-				stars[i].b = 255;		// Give It A New Blue Value
-			}
+//			if(stars[i].xdist<1.0f)			// Is The Star In The Middle Yet
+//			{
+//				stars[i].xdist += 5.0f;			// Move The Star 5 Units From The Center
+//							}
 		}
 
 		GX_SetZMode(GX_TRUE, GX_LEQUAL, GX_TRUE);
